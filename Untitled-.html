@@ -1,0 +1,105 @@
+crud_app/
+├── app.py
+├── templates/
+│   ├── base.html
+│   ├── index.html
+│   └── edit.html
+├── static/
+│   └── style.css
+└── db.sqlite3
+from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100))
+
+@app.route('/')
+def index():
+    tasks = Task.query.all()
+    return render_template('index.html', tasks=tasks)
+
+@app.route('/add', methods=['POST'])
+def add():
+    title = request.form.get('title')
+    new_task = Task(title=title)
+    db.session.add(new_task)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit(id):
+    task = Task.query.get_or_404(id)
+    if request.method == 'POST':
+        task.title = request.form.get('title')
+        db.session.commit()
+        return redirect(url_for('index'))
+    return render_template('edit.html', task=task)
+
+@app.route('/delete/<int:id>')
+def delete(id):
+    task = Task.query.get_or_404(id)
+    db.session.delete(task)
+    db.session.commit()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CRUD App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Lista de Tareas</h1>
+
+<form method="POST" action="/add" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="title" class="form-control" placeholder="Nueva tarea" required>
+        <button class="btn btn-primary">Agregar</button>
+    </div>
+</form>
+
+<ul class="list-group">
+    {% for task in tasks %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ task.title }}
+        <div>
+            <a href="/edit/{{ task.id }}" class="btn btn-warning btn-sm">Editar</a>
+            <a href="/delete/{{ task.id }}" class="btn btn-danger btn-sm">Eliminar</a>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Editar Tarea</h2>
+<form method="POST">
+    <div class="mb-3">
+        <input type="text" name="title" class="form-control" value="{{ task.title }}" required>
+    </div>
+    <button class="btn btn-success">Guardar</button>
+    <a href="/" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
+pip install flask flask_sqlalchemy
+python app.py
